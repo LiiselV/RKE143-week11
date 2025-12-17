@@ -3,28 +3,32 @@ const db = require('../db');
 const router = express.Router();
 
 /**
- * AJUTINE SEED ROUTE
- * Ava brauseris: /random/seed
- * Paneb tabelid + andmed andmebaasi
+ * ÜHEKORDNE SEED:
+ * Ava /random/seed -> teeb tabelid + lisab andmed (resetib kui vaja)
  */
 router.get('/seed', async (req, res) => {
   try {
+    // reset (lihtne ja kindel, et ei tekiks conflict/duplikaate)
+    await db.query(`DROP TABLE IF EXISTS ingredientinrecipe;`);
+    await db.query(`DROP TABLE IF EXISTS ingredient;`);
+    await db.query(`DROP TABLE IF EXISTS recipe;`);
+
     await db.query(`
-      CREATE TABLE IF NOT EXISTS recipe (
+      CREATE TABLE recipe (
         id SERIAL PRIMARY KEY,
         recipename VARCHAR(255) NOT NULL,
         instructions TEXT
       );
 
-      CREATE TABLE IF NOT EXISTS ingredient (
+      CREATE TABLE ingredient (
         id SERIAL PRIMARY KEY,
         ingredientname VARCHAR(255) NOT NULL
       );
 
-      CREATE TABLE IF NOT EXISTS ingredientinrecipe (
+      CREATE TABLE ingredientinrecipe (
         id SERIAL PRIMARY KEY,
-        recipeid INTEGER REFERENCES recipe(id),
-        ingredientid INTEGER REFERENCES ingredient(id)
+        recipeid INTEGER NOT NULL REFERENCES recipe(id) ON DELETE CASCADE,
+        ingredientid INTEGER NOT NULL REFERENCES ingredient(id) ON DELETE CASCADE
       );
     `);
 
@@ -32,35 +36,40 @@ router.get('/seed', async (req, res) => {
       INSERT INTO recipe (recipename, instructions) VALUES
       ('Pumpkin Pasties', 'Mix pumpkin puree, sugar, and spices.'),
       ('Pumpkin Tartlets', 'Mix pumpkin puree and brown sugar.'),
-      ('Creamy Pumpkin Soup', 'Sauté onion and garlic, add pumpkin.')
-      ON CONFLICT DO NOTHING;
+      ('Creamy Pumpkin Soup', 'Sauté onion and garlic, add pumpkin.');
     `);
 
     await db.query(`
       INSERT INTO ingredient (ingredientname) VALUES
-      ('pumpkin puree'),('sugar'),('cinnamon'),('nutmeg'),('cloves'),
-      ('pastry dough'),('egg wash'),('brown sugar'),('ginger'),
-      ('onion'),('garlic')
-      ON CONFLICT DO NOTHING;
+      ('pumpkin puree'),
+      ('sugar'),
+      ('cinnamon'),
+      ('nutmeg'),
+      ('cloves'),
+      ('pastry dough'),
+      ('egg wash'),
+      ('brown sugar'),
+      ('ginger'),
+      ('onion'),
+      ('garlic');
     `);
 
     await db.query(`
       INSERT INTO ingredientinrecipe (recipeid, ingredientid) VALUES
       (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),
       (2,1),(2,8),(2,9),(2,3),(2,4),
-      (3,1),(3,10),(3,11)
-      ON CONFLICT DO NOTHING;
+      (3,1),(3,10),(3,11);
     `);
 
-    res.json({ ok: true, message: 'Database seeded' });
+    res.json({ ok: true, message: 'Database seeded (tables + data created)' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.log(err);
+    res.status(500).json({ error: err.message || String(err) });
   }
 });
 
 /**
- * PÄRIS RANDOM ROUTE
- * Õppejõud kontrollib seda
+ * ÕPPEJÕU KONTROLL: /random
  */
 router.get('/', async (req, res) => {
   try {
@@ -87,7 +96,8 @@ router.get('/', async (req, res) => {
       ingredients: ingredientsResult.rows.map(r => r.ingredientname)
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.log(err);
+    res.status(500).json({ error: err.message || String(err) });
   }
 });
 
