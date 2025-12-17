@@ -31,4 +31,8 @@ router.get('/', async (req, res) => {
     res.json(randomRecipe);
   } catch (error) {
     console.log(error);
-    res.status(500).json({ errorMess
+    res.status(500).json({ errorMessage: 'Internal Server error.' });
+  }
+});
+
+module.exports = router;
